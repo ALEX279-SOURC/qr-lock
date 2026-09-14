@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Password Protected QR</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+    body { background: #f1f5f9; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+    .box { background: #fff; padding: 24px; border-radius: 14px; width: 100%; max-width: 420px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+    h2 { font-size: 1.3rem; margin-bottom: 12px; text-align: center; color: #0f172a; }
+    p.sub { font-size: 0.85rem; color: #64748b; text-align: center; margin-bottom: 18px; }
+    input { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 1rem; outline: none; }
+    button { width: 100%; padding: 12px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; }
+    #qrcode { display: flex; justify-content: center; margin-top: 20px; }
+    .status { margin-top: 15px; text-align: center; font-weight: bold; font-size: 0.95rem; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <!-- GENERATE QR VIEW -->
+    <div id="create-view">
+      <h2>Lock Link in QR</h2>
+      <p class="sub">Set a password for your Google Drive link</p>
+      <input type="url" id="link" placeholder="Enter Google Drive Link" required />
+      <input type="password" id="pass" placeholder="Set Password" required />
+      <button onclick="createQR()">Generate Secure QR</button>
+      <div id="qrcode"></div>
+    </div>
+
+    <!-- UNLOCK VIEW -->
+    <div id="unlock-view" style="display: none;">
+      <h2>🔒 Link is Protected</h2>
+      <p class="sub">Enter password to unlock Google Drive</p>
+      <input type="password" id="unlockPass" placeholder="Enter Password" required />
+      <button onclick="unlockLink()">Unlock & Open Link</button>
+      <div id="status" class="status"></div>
+    </div>
+  </div>
+
+  <script>
+    function xor(str, pass) {
+      let res = '';
+      for (let i = 0; i < str.length; i++) {
+        res += String.fromCharCode(str.charCodeAt(i) ^ pass.charCodeAt(i % pass.length));
+      }
+      return res;
+    }
+
+    window.onload = function() {
+      const hash = window.location.hash;
+      if (hash.includes("#d=")) {
+        document.getElementById("create-view").style.display = "none";
+        document.getElementById("unlock-view").style.display = "block";
+      }
+    };
+
+    function createQR() {
+      const link = document.getElementById("link").value.trim();
+      const pass = document.getElementById("pass").value.trim();
+      if (!link || !pass) return alert("Please fill all fields");
+
+      const enc = btoa(xor(link, pass));
+      const targetUrl = window.location.href.split("#")[0] + "#d=" + encodeURIComponent(enc);
+
+      document.getElementById("qrcode").innerHTML = "";
+      new QRCode(document.getElementById("qrcode"), {
+        text: targetUrl,
+        width: 200,
+        height: 200
+      });
+    }
+
+    function unlockLink() {
+      const pass = document.getElementById("unlockPass").value.trim();
+      const status = document.getElementById("status");
+      try {
+        const enc = decodeURIComponent(window.location.hash.split("#d=")[1]);
+        const dec = xor(atob(enc), pass);
+        if (dec.startsWith("http://") || dec.startsWith("https://")) {
+          status.style.color = "#16a34a";
+          status.innerText = "✓ Correct! Opening Google Drive...";
+          setTimeout(() => { window.location.href = dec; }, 700);
+        } else {
+          throw new Error();
+        }
+      } catch (e) {
+        status.style.color = "#dc2626";
+        status.innerText = "❌ Incorrect Password!";
+      }
+    }
+  </script>
+</body>
+  </html>
+  
