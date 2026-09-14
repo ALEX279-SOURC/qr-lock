@@ -1,96 +1,296 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Password Protected QR</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Secure QR Creator & Locker</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
-    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
-    body { background: #f1f5f9; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-    .box { background: #fff; padding: 24px; border-radius: 14px; width: 100%; max-width: 420px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-    h2 { font-size: 1.3rem; margin-bottom: 12px; text-align: center; color: #0f172a; }
-    p.sub { font-size: 0.85rem; color: #64748b; text-align: center; margin-bottom: 18px; }
-    input { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 1rem; outline: none; }
-    button { width: 100%; padding: 12px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; }
-    #qrcode { display: flex; justify-content: center; margin-top: 20px; }
-    .status { margin-top: 15px; text-align: center; font-weight: bold; font-size: 0.95rem; }
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --muted: #64748b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background: var(--bg); color: var(--text); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .card { width: 100%; max-width: 500px; background: var(--card); padding: 28px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); border: 1px solid var(--border); }
+    h1 { font-size: 1.4rem; font-weight: 700; text-align: center; margin-bottom: 6px; }
+    p.sub { font-size: 0.88rem; color: var(--muted); text-align: center; margin-bottom: 20px; }
+    
+    .form-group { margin-bottom: 14px; }
+    label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 5px; }
+    input[type="text"], input[type="url"], input[type="password"], textarea, select {
+      width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; outline: none; transition: border-color 0.2s;
+    }
+    input:focus, textarea:focus, select:focus { border-color: var(--primary); }
+    textarea { resize: vertical; min-height: 60px; }
+
+    .color-row { display: flex; gap: 12px; }
+    .color-box { flex: 1; }
+    .color-box input[type="color"] { width: 100%; height: 40px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; padding: 2px; }
+
+    .tab-group { display: flex; gap: 8px; margin-bottom: 14px; }
+    .tab-btn { flex: 1; padding: 8px; font-size: 0.85rem; border: 1px solid var(--border); background: var(--bg); border-radius: 6px; cursor: pointer; font-weight: 600; }
+    .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+    button.primary-btn { width: 100%; background: var(--primary); color: #fff; border: none; padding: 12px; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; margin-top: 8px; }
+    button.primary-btn:hover { background: var(--primary-hover); }
+
+    .result-section { display: none; margin-top: 24px; text-align: center; border-top: 1px dashed var(--border); padding-top: 20px; }
+    #qrcode { display: flex; justify-content: center; margin: 16px 0; }
+    #qrcode img { border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+
+    .download-btn { display: inline-flex; align-items: center; justify-content: center; width: 100%; background: #10b981; color: white; padding: 10px; border-radius: 8px; font-weight: 600; border: none; cursor: pointer; text-decoration: none; margin-top: 10px; }
+    .download-btn:hover { background: #059669; }
+
+    .msg { font-size: 0.9rem; margin-top: 12px; font-weight: 600; text-align: center; }
+    .msg.err { color: #dc2626; }
+    .msg.ok { color: #16a34a; }
+
+    .display-title { font-size: 1.2rem; font-weight: 700; text-align: center; margin-bottom: 4px; }
+    .display-desc { font-size: 0.9rem; color: var(--muted); text-align: center; margin-bottom: 16px; white-space: pre-wrap; }
+    .unlocked-content { margin-top: 15px; text-align: center; }
+    .preview-img { max-width: 100%; border-radius: 8px; margin-top: 10px; border: 1px solid var(--border); }
   </style>
 </head>
 <body>
-  <div class="box">
-    <!-- GENERATE QR VIEW -->
-    <div id="create-view">
-      <h2>Lock Link in QR</h2>
-      <p class="sub">Set a password for your Google Drive link</p>
-      <input type="url" id="link" placeholder="Enter Google Drive Link" required />
-      <input type="password" id="pass" placeholder="Set Password" required />
-      <button onclick="createQR()">Generate Secure QR</button>
-      <div id="qrcode"></div>
+
+  <div class="card">
+    <!-- CREATE VIEW -->
+    <div id="creator-view">
+      <h1>Protected QR Studio</h1>
+      <p class="sub">Encrypt files, links, & photos behind a secure QR code</p>
+
+      <!-- TAB SELECTION -->
+      <div class="tab-group">
+        <button type="button" class="tab-btn active" onclick="setMode('url')">Link / URL</button>
+        <button type="button" class="tab-btn" onclick="setMode('file')">File / Photo</button>
+      </div>
+
+      <form onsubmit="handleGenerate(event)">
+        <!-- Link Field -->
+        <div class="form-group" id="url-input-group">
+          <label>Destination URL / Google Drive Link</label>
+          <input type="url" id="linkInput" placeholder="https://drive.google.com/..." />
+        </div>
+
+        <!-- File Field -->
+        <div class="form-group" id="file-input-group" style="display: none;">
+          <label>Select Photo / File (Max ~1.5 MB for QR stability)</label>
+          <input type="file" id="fileInput" accept="image/*,.pdf,.txt,.doc" />
+        </div>
+
+        <!-- QR Name/Title -->
+        <div class="form-group">
+          <label>QR Title / Name</label>
+          <input type="text" id="titleInput" placeholder="e.g. My Secret Drive Folder" required />
+        </div>
+
+        <!-- QR Description -->
+        <div class="form-group">
+          <label>Description / Note (Optional)</label>
+          <textarea id="descInput" placeholder="Add instructions or information..."></textarea>
+        </div>
+
+        <!-- Color Settings -->
+        <div class="color-row form-group">
+          <div class="color-box">
+            <label>QR Color</label>
+            <input type="color" id="qrColor" value="#000000" />
+          </div>
+          <div class="color-box">
+            <label>Background Color</label>
+            <input type="color" id="qrBgColor" value="#ffffff" />
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div class="form-group">
+          <label>Set Password</label>
+          <input type="password" id="passInput" placeholder="Set a secure password" required />
+        </div>
+
+        <button type="submit" class="primary-btn">Generate Protected QR</button>
+      </form>
+
+      <!-- RESULT -->
+      <div id="result" class="result-section">
+        <label>Scan or Download QR:</label>
+        <div id="qrcode"></div>
+        <button type="button" class="download-btn" onclick="downloadQR()">⬇ Download QR Code</button>
+      </div>
     </div>
 
     <!-- UNLOCK VIEW -->
     <div id="unlock-view" style="display: none;">
-      <h2>🔒 Link is Protected</h2>
-      <p class="sub">Enter password to unlock Google Drive</p>
-      <input type="password" id="unlockPass" placeholder="Enter Password" required />
-      <button onclick="unlockLink()">Unlock & Open Link</button>
-      <div id="status" class="status"></div>
+      <h2 class="display-title" id="outTitle">🔒 Locked Content</h2>
+      <p class="display-desc" id="outDesc">Enter password to access this content.</p>
+
+      <form onsubmit="handleUnlock(event)">
+        <div class="form-group">
+          <label>Enter Password</label>
+          <input type="password" id="unlockPass" placeholder="Password" required />
+        </div>
+        <button type="submit" class="primary-btn">Unlock Content</button>
+      </form>
+
+      <div id="unlock-status" class="msg"></div>
+      
+      <div id="unlocked-content" class="unlocked-content" style="display: none;">
+        <div id="contentRenderer"></div>
+      </div>
     </div>
   </div>
 
   <script>
-    function xor(str, pass) {
+    let currentMode = 'url';
+
+    function setMode(mode) {
+      currentMode = mode;
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      if (mode === 'url') {
+        document.querySelectorAll('.tab-btn')[0].classList.add('active');
+        document.getElementById('url-input-group').style.display = 'block';
+        document.getElementById('file-input-group').style.display = 'none';
+      } else {
+        document.querySelectorAll('.tab-btn')[1].classList.add('active');
+        document.getElementById('url-input-group').style.display = 'none';
+        document.getElementById('file-input-group').style.display = 'block';
+      }
+    }
+
+    // Simple XOR payload cipher
+    function xorCipher(text, pass) {
       let res = '';
-      for (let i = 0; i < str.length; i++) {
-        res += String.fromCharCode(str.charCodeAt(i) ^ pass.charCodeAt(i % pass.length));
+      for (let i = 0; i < text.length; i++) {
+        res += String.fromCharCode(text.charCodeAt(i) ^ pass.charCodeAt(i % pass.length));
       }
       return res;
     }
 
-    window.onload = function() {
+    // Auto-detect Unlock Mode
+    window.addEventListener("DOMContentLoaded", () => {
       const hash = window.location.hash;
-      if (hash.includes("#d=")) {
-        document.getElementById("create-view").style.display = "none";
+      if (hash.startsWith("#data=")) {
+        document.getElementById("creator-view").style.display = "none";
         document.getElementById("unlock-view").style.display = "block";
       }
-    };
+    });
 
-    function createQR() {
-      const link = document.getElementById("link").value.trim();
-      const pass = document.getElementById("pass").value.trim();
-      if (!link || !pass) return alert("Please fill all fields");
+    // Helper: Read File as Base64 Data URL
+    const readFileAsDataURL = (file) => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
 
-      const enc = btoa(xor(link, pass));
-      const targetUrl = window.location.href.split("#")[0] + "#d=" + encodeURIComponent(enc);
+    async function handleGenerate(e) {
+      e.preventDefault();
+      const title = document.getElementById("titleInput").value.trim();
+      const desc = document.getElementById("descInput").value.trim();
+      const pass = document.getElementById("passInput").value;
+      const color = document.getElementById("qrColor").value;
+      const bgColor = document.getElementById("qrBgColor").value;
 
-      document.getElementById("qrcode").innerHTML = "";
-      new QRCode(document.getElementById("qrcode"), {
-        text: targetUrl,
-        width: 200,
-        height: 200
+      let payloadData = '';
+      let type = 'link';
+
+      if (currentMode === 'url') {
+        payloadData = document.getElementById("linkInput").value.trim();
+        if (!payloadData) return alert("Please enter a valid link");
+      } else {
+        const fileInput = document.getElementById("fileInput");
+        if (!fileInput.files.length) return alert("Please select a file or image");
+        type = fileInput.files[0].type.startsWith("image/") ? "image" : "file";
+        payloadData = await readFileAsDataURL(fileInput.files[0]);
+      }
+
+      const payload = JSON.stringify({
+        title,
+        desc,
+        type,
+        data: payloadData,
+        filename: currentMode === 'file' ? document.getElementById("fileInput").files[0].name : ''
       });
+
+      // Encrypt & create target URL
+      const encrypted = btoa(unescape(encodeURIComponent(xorCipher(payload, pass))));
+      const baseUrl = window.location.href.split("#")[0];
+      const targetUrl = `${baseUrl}#data=${encodeURIComponent(encrypted)}`;
+
+      // Render QR
+      const qrBox = document.getElementById("qrcode");
+      qrBox.innerHTML = "";
+      new QRCode(qrBox, {
+        text: targetUrl,
+        width: 220,
+        height: 220,
+        colorDark: color,
+        colorLight: bgColor,
+        correctLevel: QRCode.CorrectLevel.L
+      });
+
+      document.getElementById("result").style.display = "block";
     }
 
-    function unlockLink() {
-      const pass = document.getElementById("unlockPass").value.trim();
-      const status = document.getElementById("status");
+    function downloadQR() {
+      const img = document.querySelector("#qrcode img");
+      if (!img) return;
+      const a = document.createElement("a");
+      a.href = img.src;
+      a.download = `${(document.getElementById("titleInput").value || "secure-qr").replace(/\s+/g, "_")}.png`;
+      a.click();
+    }
+
+    function handleUnlock(e) {
+      e.preventDefault();
+      const pass = document.getElementById("unlockPass").value;
+      const status = document.getElementById("unlock-status");
+      const outBox = document.getElementById("unlocked-content");
+      const renderer = document.getElementById("contentRenderer");
+
       try {
-        const enc = decodeURIComponent(window.location.hash.split("#d=")[1]);
-        const dec = xor(atob(enc), pass);
-        if (dec.startsWith("http://") || dec.startsWith("https://")) {
-          status.style.color = "#16a34a";
-          status.innerText = "✓ Correct! Opening Google Drive...";
-          setTimeout(() => { window.location.href = dec; }, 700);
+        const hash = window.location.hash.replace("#data=", "");
+        const raw = decodeURIComponent(hash);
+        const decryptedStr = xorCipher(decodeURIComponent(escape(atob(raw))), pass);
+        const obj = JSON.parse(decryptedStr);
+
+        status.className = "msg ok";
+        status.innerText = "✓ Unlocked successfully!";
+
+        document.getElementById("outTitle").innerText = obj.title || "Unlocked Content";
+        document.getElementById("outDesc").innerText = obj.desc || "";
+
+        renderer.innerHTML = "";
+        if (obj.type === 'link') {
+          renderer.innerHTML = `
+            <a href="${obj.data}" target="_blank" class="download-btn" style="background: #2563eb;">Open Google Drive / Link ↗</a>
+          `;
+          setTimeout(() => { window.location.href = obj.data; }, 1000);
+        } else if (obj.type === 'image') {
+          renderer.innerHTML = `
+            <img src="${obj.data}" class="preview-img" alt="Unlocked Image" />
+            <a href="${obj.data}" download="${obj.filename || 'image.png'}" class="download-btn">Download Image</a>
+          `;
         } else {
-          throw new Error();
+          renderer.innerHTML = `
+            <p style="margin-bottom: 8px;"><strong>${obj.filename || 'File'}</strong></p>
+            <a href="${obj.data}" download="${obj.filename || 'download'}" class="download-btn">Download File</a>
+          `;
         }
-      } catch (e) {
-        status.style.color = "#dc2626";
-        status.innerText = "❌ Incorrect Password!";
+
+        outBox.style.display = "block";
+      } catch (err) {
+        status.className = "msg err";
+        status.innerText = "❌ Incorrect password!";
+        outBox.style.display = "none";
       }
     }
   </script>
 </body>
-  </html>
-  
+</html>
