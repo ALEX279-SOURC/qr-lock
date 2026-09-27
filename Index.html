@@ -1,96 +1,508 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Password Protected QR</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Secure QR Studio & Flash Card</title>
+  <!-- Google Fonts for stylish cursive 'My QR' header -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
-    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
-    body { background: #f1f5f9; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-    .box { background: #fff; padding: 24px; border-radius: 14px; width: 100%; max-width: 420px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-    h2 { font-size: 1.3rem; margin-bottom: 12px; text-align: center; color: #0f172a; }
-    p.sub { font-size: 0.85rem; color: #64748b; text-align: center; margin-bottom: 18px; }
-    input { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 1rem; outline: none; }
-    button { width: 100%; padding: 12px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; }
-    #qrcode { display: flex; justify-content: center; margin-top: 20px; }
-    .status { margin-top: 15px; text-align: center; font-weight: bold; font-size: 0.95rem; }
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --muted: #64748b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', system-ui, sans-serif; }
+    body { background: var(--bg); color: var(--text); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .card { width: 100%; max-width: 490px; background: var(--card); padding: 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); border: 1px solid var(--border); }
+    h1 { font-size: 1.35rem; font-weight: 700; text-align: center; margin-bottom: 4px; }
+    p.sub { font-size: 0.85rem; color: var(--muted); text-align: center; margin-bottom: 18px; }
+    
+    .tab-group { display: flex; gap: 8px; margin-bottom: 14px; }
+    .tab-btn { flex: 1; padding: 9px; font-size: 0.85rem; border: 1px solid var(--border); background: var(--bg); border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+    .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+    .form-group { margin-bottom: 14px; }
+    label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 5px; }
+    input[type="text"], input[type="url"], input[type="password"], textarea, select {
+      width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; outline: none; transition: border-color 0.2s;
+    }
+    input:focus, textarea:focus { border-color: var(--primary); }
+    textarea { resize: vertical; min-height: 50px; }
+
+    .color-row { display: flex; gap: 12px; }
+    .color-box { flex: 1; }
+    .color-box input[type="color"] { width: 100%; height: 38px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; padding: 2px; }
+
+    button.primary-btn { width: 100%; background: var(--primary); color: #fff; border: none; padding: 12px; border-radius: 8px; font-size: 0.98rem; font-weight: 600; cursor: pointer; margin-top: 6px; }
+    button.primary-btn:hover { background: var(--primary-hover); }
+
+    .result-section { display: none; margin-top: 20px; text-align: center; border-top: 1px dashed var(--border); padding-top: 18px; }
+    
+    /* PREVIEW CONTAINER */
+    .preview-card {
+      width: 260px;
+      margin: 14px auto;
+      border-radius: 26px;
+      padding: 24px 18px 20px 18px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+      color: #ffffff;
+      text-align: center;
+      transition: background 0.3s;
+    }
+    .preview-card .header-title {
+      font-family: 'Caveat', cursive;
+      font-size: 2.4rem;
+      line-height: 1.1;
+      font-weight: 700;
+    }
+    .preview-card .header-sub {
+      font-size: 0.65rem;
+      letter-spacing: 1.5px;
+      font-weight: 600;
+      opacity: 0.95;
+      margin-top: 2px;
+      margin-bottom: 4px;
+    }
+    .preview-card .heart-icon {
+      font-size: 1rem;
+      text-align: right;
+      padding-right: 12px;
+      line-height: 1;
+      margin-bottom: 2px;
+    }
+    .preview-card .qr-wrapper {
+      background: #ffffff;
+      padding: 14px;
+      border-radius: 18px;
+      display: inline-block;
+      margin: 2px 0 14px 0;
+    }
+    .preview-card #qrcode {
+      display: flex;
+      justify-content: center;
+    }
+    .preview-card #qrcode canvas, .preview-card #qrcode img {
+      display: block;
+      width: 170px !important;
+      height: 170px !important;
+    }
+    .preview-card .footer-title {
+      font-size: 0.72rem;
+      letter-spacing: 1.2px;
+      font-weight: 700;
+    }
+    .preview-card .footer-sub {
+      font-size: 0.62rem;
+      opacity: 0.85;
+      margin-top: 3px;
+    }
+    .preview-card .dash-line {
+      border-top: 1px dashed rgba(255, 255, 255, 0.45);
+      width: 80%;
+      margin: 12px auto 0 auto;
+    }
+
+    /* ACTION BUTTONS */
+    .btn-row { display: flex; gap: 10px; margin-top: 14px; }
+    .btn-row button {
+      flex: 1;
+      padding: 12px 10px;
+      border-radius: 8px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-download { background: #10b981; color: white; }
+    .btn-download:hover { background: #059669; }
+    .btn-share { background: #6366f1; color: white; }
+    .btn-share:hover { background: #4f46e5; }
+
+    .msg { font-size: 0.9rem; margin-top: 12px; font-weight: 600; text-align: center; }
+    .msg.err { color: #dc2626; }
+    .msg.ok { color: #16a34a; }
+
+    .display-title { font-size: 1.2rem; font-weight: 700; text-align: center; margin-bottom: 4px; }
+    .display-desc { font-size: 0.88rem; color: var(--muted); text-align: center; margin-bottom: 14px; white-space: pre-wrap; }
+    .preview-img { max-width: 100%; max-height: 250px; object-fit: contain; border-radius: 8px; margin: 10px 0; border: 1px solid var(--border); }
   </style>
 </head>
 <body>
-  <div class="box">
-    <!-- GENERATE QR VIEW -->
-    <div id="create-view">
-      <h2>Create Secure QR</h2>
-      <p class="sub">Set a password for your Google Drive link</p>
-      <input type="url" id="link" placeholder="Enter Google Drive Link" required />
-      <input type="password" id="pass" placeholder="Set Password" required />
-      <button onclick="createQR()">Generate Secure QR</button>
-      <div id="qrcode"></div>
+
+  <div class="card">
+    <!-- VIEW 1: CREATOR -->
+    <div id="creator-view">
+      <h1>Protected QR Studio</h1>
+      <p class="sub">Generate a password-locked Flash Card QR code</p>
+
+      <!-- TAB SELECTION -->
+      <div class="tab-group">
+        <button type="button" class="tab-btn active" onclick="setMode('url')">Drive / URL</button>
+        <button type="button" class="tab-btn" onclick="setMode('image')">Photo Link</button>
+        <button type="button" class="tab-btn" onclick="setMode('file')">File Link</button>
+      </div>
+
+      <form onsubmit="handleGenerate(event)">
+        <!-- URL Input -->
+        <div class="form-group">
+          <label id="inputLabel">Google Drive / Target Link</label>
+          <input type="url" id="linkInput" placeholder="https://drive.google.com/..." required />
+        </div>
+
+        <!-- Custom Card Heading (Default: My QR) -->
+        <div class="form-group">
+          <label>Card Heading (Top Style Text)</label>
+          <input type="text" id="cardHeadingInput" value="My QR" placeholder="e.g. My QR" required />
+        </div>
+
+        <!-- QR Name/Title -->
+        <div class="form-group">
+          <label>File / Link Name</label>
+          <input type="text" id="titleInput" placeholder="e.g. Secret Drive Folder" required />
+        </div>
+
+        <!-- Description -->
+        <div class="form-group">
+          <label>QR Description / Note (Optional)</label>
+          <textarea id="descInput" placeholder="Add custom instructions or note..."></textarea>
+        </div>
+
+        <!-- Card Theme Color -->
+        <div class="color-row form-group">
+          <div class="color-box">
+            <label>Flash Card Color</label>
+            <input type="color" id="cardBgColor" value="#c4848d" onchange="updatePreviewTheme()" />
+          </div>
+          <div class="color-box">
+            <label>QR Code Color</label>
+            <input type="color" id="qrDarkColor" value="#000000" />
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div class="form-group">
+          <label>Set Password</label>
+          <input type="password" id="passInput" placeholder="Enter password to lock" required />
+        </div>
+
+        <button type="submit" class="primary-btn">Generate Flash Card QR</button>
+      </form>
+
+      <!-- RESULT SECTION -->
+      <div id="result" class="result-section">
+        <label style="font-weight:700;">Live Flash Card Preview:</label>
+        
+        <!-- VISUAL FLASH CARD PREVIEW -->
+        <div class="preview-card" id="flashCardPreview">
+          <div class="header-title" id="previewHeading">My QR</div>
+          <div class="header-sub">SCAN TO OPEN</div>
+          <div class="heart-icon">♡</div>
+          <div class="qr-wrapper">
+            <div id="qrcode"></div>
+          </div>
+          <div class="footer-title">SHARE & CONNECT</div>
+          <div class="footer-sub">Point your camera to scan instantly</div>
+          <div class="dash-line"></div>
+        </div>
+
+        <!-- ACTION BUTTONS -->
+        <div class="btn-row">
+          <button type="button" class="btn-download" onclick="downloadFlashCard()">
+            📥 Download Flash Card (PNG)
+          </button>
+          <button type="button" class="btn-share" onclick="shareQR()">
+            🔗 Share Link
+          </button>
+        </div>
+      </div>
     </div>
 
-    <!-- UNLOCK VIEW -->
+    <!-- VIEW 2: UNLOCK SCREEN -->
     <div id="unlock-view" style="display: none;">
-      <h2>🔒 Link is Protected</h2>
-      <p class="sub">Enter password to unlock Google Drive</p>
-      <input type="password" id="unlockPass" placeholder="Enter Password" required />
-      <button onclick="unlockLink()">Unlock & Open Link</button>
-      <div id="status" class="status"></div>
+      <h2 class="display-title" id="outTitle">🔒 Locked Content</h2>
+      <p class="display-desc" id="outDesc">Enter password to view content.</p>
+
+      <form onsubmit="handleUnlock(event)">
+        <div class="form-group">
+          <label>Enter Password</label>
+          <input type="password" id="unlockPass" placeholder="Password" required />
+        </div>
+        <button type="submit" class="primary-btn">Unlock Content</button>
+      </form>
+
+      <div id="unlock-status" class="msg"></div>
+      
+      <div id="unlocked-content" style="display: none; margin-top: 15px; text-align: center;">
+        <div id="contentRenderer"></div>
+      </div>
     </div>
   </div>
 
   <script>
-    function xor(str, pass) {
+    let currentMode = 'url';
+    let currentTargetUrl = '';
+
+    function setMode(mode) {
+      currentMode = mode;
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      const label = document.getElementById("inputLabel");
+      const input = document.getElementById("linkInput");
+
+      if (mode === 'url') {
+        document.querySelectorAll('.tab-btn')[0].classList.add('active');
+        label.innerText = "Google Drive / Target URL";
+        input.placeholder = "https://drive.google.com/...";
+      } else if (mode === 'image') {
+        document.querySelectorAll('.tab-btn')[1].classList.add('active');
+        label.innerText = "Photo / Image URL (Direct Link)";
+        input.placeholder = "https://example.com/photo.jpg or Drive link";
+      } else {
+        document.querySelectorAll('.tab-btn')[2].classList.add('active');
+        label.innerText = "File URL (PDF / Doc / ZIP link)";
+        input.placeholder = "https://drive.google.com/... or download URL";
+      }
+    }
+
+    function updatePreviewTheme() {
+      const color = document.getElementById("cardBgColor").value;
+      const preview = document.getElementById("flashCardPreview");
+      if (preview) preview.style.backgroundColor = color;
+    }
+
+    function xorCipher(text, pass) {
       let res = '';
-      for (let i = 0; i < str.length; i++) {
-        res += String.fromCharCode(str.charCodeAt(i) ^ pass.charCodeAt(i % pass.length));
+      for (let i = 0; i < text.length; i++) {
+        res += String.fromCharCode(text.charCodeAt(i) ^ pass.charCodeAt(i % pass.length));
       }
       return res;
     }
 
-    window.onload = function() {
+    window.addEventListener("DOMContentLoaded", () => {
       const hash = window.location.hash;
-      if (hash.includes("#d=")) {
-        document.getElementById("create-view").style.display = "none";
+      if (hash.startsWith("#data=")) {
+        document.getElementById("creator-view").style.display = "none";
         document.getElementById("unlock-view").style.display = "block";
       }
-    };
+    });
 
-    function createQR() {
-      const link = document.getElementById("link").value.trim();
-      const pass = document.getElementById("pass").value.trim();
-      if (!link || !pass) return alert("Please fill all fields");
+    function handleGenerate(e) {
+      e.preventDefault();
+      const link = document.getElementById("linkInput").value.trim();
+      const cardHeading = document.getElementById("cardHeadingInput").value.trim() || "My QR";
+      const title = document.getElementById("titleInput").value.trim();
+      const desc = document.getElementById("descInput").value.trim();
+      const pass = document.getElementById("passInput").value;
+      const cardBg = document.getElementById("cardBgColor").value;
+      const qrColor = document.getElementById("qrDarkColor").value;
 
-      const enc = btoa(xor(link, pass));
-      const targetUrl = window.location.href.split("#")[0] + "#d=" + encodeURIComponent(enc);
+      if (!link || !pass) return alert("Please fill all required fields");
 
-      document.getElementById("qrcode").innerHTML = "";
-      new QRCode(document.getElementById("qrcode"), {
-        text: targetUrl,
-        width: 200,
-        height: 200
+      const payload = JSON.stringify({
+        title,
+        desc,
+        type: currentMode,
+        data: link
       });
+
+      // Encrypt
+      const encrypted = btoa(unescape(encodeURIComponent(xorCipher(payload, pass))));
+      const baseUrl = window.location.href.split("#")[0];
+      currentTargetUrl = `${baseUrl}#data=${encodeURIComponent(encrypted)}`;
+
+      // Update Card Preview Style
+      const card = document.getElementById("flashCardPreview");
+      card.style.backgroundColor = cardBg;
+      document.getElementById("previewHeading").innerText = cardHeading;
+
+      // Render QR
+      const qrBox = document.getElementById("qrcode");
+      qrBox.innerHTML = "";
+      new QRCode(qrBox, {
+        text: currentTargetUrl,
+        width: 170,
+        height: 170,
+        colorDark: qrColor,
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M
+      });
+
+      document.getElementById("result").style.display = "block";
     }
 
-    function unlockLink() {
-      const pass = document.getElementById("unlockPass").value.trim();
-      const status = document.getElementById("status");
+    // HIGH QUALITY CANVAS FLASH CARD BUILDER (Downloads exact aesthetic card as PNG)
+    async function downloadFlashCard() {
+      const qrCanvas = document.querySelector("#qrcode canvas");
+      if (!qrCanvas) {
+        alert("Please generate QR code first!");
+        return;
+      }
+
+      // High-res Canvas setup (520x960 for crystal-clear mobile display)
+      const canvas = document.createElement("canvas");
+      canvas.width = 520;
+      canvas.height = 960;
+      const ctx = canvas.getContext("2d");
+
+      const cardBg = document.getElementById("cardBgColor").value || "#c4848d";
+      const cardHeading = document.getElementById("cardHeadingInput").value || "My QR";
+
+      // Helper function to draw rounded rectangles
+      function roundRect(ctx, x, y, width, height, radius) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+      }
+
+      // 1. Draw Card Background
+      roundRect(ctx, 0, 0, 520, 960, 48);
+      ctx.fillStyle = cardBg;
+      ctx.fill();
+
+      // Ensure Fonts are Loaded
+      await document.fonts.ready;
+
+      // 2. Draw Top Heading (My QR)
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "center";
+      ctx.font = "bold 82px 'Caveat', cursive, sans-serif";
+      ctx.fillText(cardHeading, 260, 155);
+
+      // 3. Draw Subtitle "SCAN TO OPEN"
+      ctx.font = "600 19px 'Poppins', sans-serif";
+      ctx.letterSpacing = "3px";
+      ctx.fillText("SCAN TO OPEN", 260, 205);
+
+      // 4. Draw Heart Icon (🤍)
+      ctx.font = "26px sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText("♡", 440, 248);
+
+      // 5. Draw White QR Container Box
+      ctx.save();
+      roundRect(ctx, 70, 260, 380, 380, 36);
+      ctx.fillStyle = "#ffffff";
+      ctx.shadowColor = "rgba(0,0,0,0.15)";
+      ctx.shadowBlur = 24;
+      ctx.shadowOffsetY = 10;
+      ctx.fill();
+      ctx.restore();
+
+      // 6. Draw QR Code inside the box
+      ctx.drawImage(qrCanvas, 95, 285, 330, 330);
+
+      // 7. Draw Bottom Info "SHARE & CONNECT"
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 20px 'Poppins', sans-serif";
+      ctx.letterSpacing = "2px";
+      ctx.fillText("SHARE & CONNECT", 260, 725);
+
+      // 8. Draw Subtext
+      ctx.font = "16px 'Poppins', sans-serif";
+      ctx.letterSpacing = "0px";
+      ctx.fillStyle = "rgba(255, 255, 255, 0.88)";
+      ctx.fillText("Point your camera to scan instantly", 260, 765);
+
+      // 9. Draw Dashed Divider Line
+      ctx.beginPath();
+      ctx.setLineDash([8, 8]);
+      ctx.moveTo(140, 815);
+      ctx.lineTo(380, 815);
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // 10. Download Output PNG
+      const a = document.createElement("a");
+      a.href = canvas.toDataURL("image/png");
+      const filename = (cardHeading || "My_QR").replace(/[^a-zA-Z0-9_-]/g, "_");
+      a.download = `${filename}_FlashCard.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    async function shareQR() {
+      if (!currentTargetUrl) return alert("Please generate QR code first!");
+      const title = document.getElementById("titleInput").value || "Protected Link";
+
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: title,
+            text: `Open this protected link (Password Required):`,
+            url: currentTargetUrl
+          });
+        } catch (err) {}
+      } else {
+        navigator.clipboard.writeText(currentTargetUrl);
+        alert("Link copied to clipboard! You can share it via WhatsApp or Messages.");
+      }
+    }
+
+    function handleUnlock(e) {
+      e.preventDefault();
+      const pass = document.getElementById("unlockPass").value;
+      const status = document.getElementById("unlock-status");
+      const outBox = document.getElementById("unlocked-content");
+      const renderer = document.getElementById("contentRenderer");
+
       try {
-        const enc = decodeURIComponent(window.location.hash.split("#d=")[1]);
-        const dec = xor(atob(enc), pass);
-        if (dec.startsWith("http://") || dec.startsWith("https://")) {
-          status.style.color = "#16a34a";
-          status.innerText = "✓ Correct! Opening Google Drive...";
-          setTimeout(() => { window.location.href = dec; }, 700);
+        const hash = window.location.hash.replace("#data=", "");
+        const raw = decodeURIComponent(hash);
+        const decryptedStr = xorCipher(decodeURIComponent(escape(atob(raw))), pass);
+        const obj = JSON.parse(decryptedStr);
+
+        status.className = "msg ok";
+        status.innerText = "✓ Unlocked successfully!";
+
+        document.getElementById("outTitle").innerText = obj.title || "Unlocked Content";
+        document.getElementById("outDesc").innerText = obj.desc || "";
+
+        renderer.innerHTML = "";
+        if (obj.type === 'url') {
+          renderer.innerHTML = `
+            <a href="${obj.data}" target="_blank" class="primary-btn" style="display:block; text-decoration:none;">Open Google Drive Link ↗</a>
+          `;
+          setTimeout(() => { window.location.href = obj.data; }, 800);
+        } else if (obj.type === 'image') {
+          renderer.innerHTML = `
+            <img src="${obj.data}" class="preview-img" alt="Unlocked Image Preview" onerror="this.style.display='none'" />
+            <a href="${obj.data}" target="_blank" class="primary-btn" style="display:block; text-decoration:none;">Open / View Photo ↗</a>
+          `;
         } else {
-          throw new Error();
+          renderer.innerHTML = `
+            <a href="${obj.data}" target="_blank" class="primary-btn" style="display:block; text-decoration:none;">Open / Download File ↗</a>
+          `;
         }
-      } catch (e) {
-        status.style.color = "#dc2626";
-        status.innerText = "❌ Incorrect Password!";
+
+        outBox.style.display = "block";
+      } catch (err) {
+        status.className = "msg err";
+        status.innerText = "❌ Incorrect password!";
+        outBox.style.display = "none";
       }
     }
   </script>
 </body>
-  </html>
-  
+</html>
