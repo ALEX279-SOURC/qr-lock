@@ -3,12 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Secure QR Studio & Flash Card</title>
-  <!-- Google Fonts for stylish cursive 'My QR' header -->
+  <title>Dynamic-Static Secure QR Studio</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
   <style>
     :root {
       --primary: #2563eb;
@@ -25,13 +29,17 @@
     h1 { font-size: 1.35rem; font-weight: 700; text-align: center; margin-bottom: 4px; }
     p.sub { font-size: 0.85rem; color: var(--muted); text-align: center; margin-bottom: 18px; }
     
+    .top-nav { display: flex; gap: 8px; margin-bottom: 16px; background: #f1f5f9; padding: 5px; border-radius: 10px; }
+    .nav-btn { flex: 1; padding: 8px; border: none; background: transparent; border-radius: 7px; font-weight: 600; font-size: 0.85rem; cursor: pointer; color: var(--muted); }
+    .nav-btn.active { background: #ffffff; color: var(--primary); box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
+
     .tab-group { display: flex; gap: 8px; margin-bottom: 14px; }
     .tab-btn { flex: 1; padding: 9px; font-size: 0.85rem; border: 1px solid var(--border); background: var(--bg); border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
     .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
 
     .form-group { margin-bottom: 14px; }
     label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 5px; }
-    input[type="text"], input[type="url"], input[type="password"], textarea, select {
+    input[type="text"], input[type="url"], input[type="password"], textarea {
       width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; outline: none; transition: border-color 0.2s;
     }
     input:focus, textarea:focus { border-color: var(--primary); }
@@ -43,97 +51,51 @@
 
     button.primary-btn { width: 100%; background: var(--primary); color: #fff; border: none; padding: 12px; border-radius: 8px; font-size: 0.98rem; font-weight: 600; cursor: pointer; margin-top: 6px; }
     button.primary-btn:hover { background: var(--primary-hover); }
+    button.primary-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
     .result-section { display: none; margin-top: 20px; text-align: center; border-top: 1px dashed var(--border); padding-top: 18px; }
     
-    /* PREVIEW CONTAINER */
-    .preview-card {
-      width: 260px;
-      margin: 14px auto;
-      border-radius: 26px;
-      padding: 24px 18px 20px 18px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-      color: #ffffff;
-      text-align: center;
-      transition: background 0.3s;
-    }
-    .preview-card .header-title {
-      font-family: 'Caveat', cursive;
-      font-size: 2.4rem;
-      line-height: 1.1;
-      font-weight: 700;
-    }
-    .preview-card .header-sub {
-      font-size: 0.65rem;
-      letter-spacing: 1.5px;
-      font-weight: 600;
-      opacity: 0.95;
-      margin-top: 2px;
-      margin-bottom: 4px;
-    }
-    .preview-card .heart-icon {
-      font-size: 1rem;
-      text-align: right;
-      padding-right: 12px;
-      line-height: 1;
-      margin-bottom: 2px;
-    }
-    .preview-card .qr-wrapper {
-      background: #ffffff;
-      padding: 14px;
-      border-radius: 18px;
-      display: inline-block;
-      margin: 2px 0 14px 0;
-    }
-    .preview-card #qrcode {
-      display: flex;
-      justify-content: center;
-    }
-    .preview-card #qrcode canvas, .preview-card #qrcode img {
-      display: block;
-      width: 170px !important;
-      height: 170px !important;
-    }
-    .preview-card .footer-title {
-      font-size: 0.72rem;
-      letter-spacing: 1.2px;
-      font-weight: 700;
-    }
-    .preview-card .footer-sub {
-      font-size: 0.62rem;
-      opacity: 0.85;
-      margin-top: 3px;
-    }
-    .preview-card .dash-line {
-      border-top: 1px dashed rgba(255, 255, 255, 0.45);
-      width: 80%;
-      margin: 12px auto 0 auto;
+    .id-badge {
+      background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 8px 12px; border-radius: 8px;
+      font-size: 0.85rem; font-weight: 600; margin-bottom: 12px; display: inline-block;
     }
 
-    /* ACTION BUTTONS */
+    /* SAVED HISTORY CHIPS */
+    .history-box { margin-bottom: 14px; }
+    .history-title { font-size: 0.78rem; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+    .history-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .history-chip {
+      background: #e2e8f0; color: #1e293b; border: none; padding: 6px 10px; border-radius: 6px;
+      font-size: 0.78rem; font-weight: 600; cursor: pointer;
+    }
+    .history-chip:hover { background: #cbd5e1; }
+
+    /* PREVIEW CONTAINER */
+    .preview-card {
+      width: 260px; margin: 14px auto; border-radius: 26px; padding: 24px 18px 20px 18px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15); color: #ffffff; text-align: center; transition: background 0.3s;
+    }
+    .preview-card .header-title { font-family: 'Caveat', cursive; font-size: 2.4rem; line-height: 1.1; font-weight: 700; }
+    .preview-card .header-sub { font-size: 0.65rem; letter-spacing: 1.5px; font-weight: 600; opacity: 0.95; margin-top: 2px; margin-bottom: 4px; }
+    .preview-card .heart-icon { font-size: 1rem; text-align: right; padding-right: 12px; line-height: 1; margin-bottom: 2px; }
+    .preview-card .qr-wrapper { background: #ffffff; padding: 14px; border-radius: 18px; display: inline-block; margin: 2px 0 14px 0; }
+    .preview-card #qrcode { display: flex; justify-content: center; }
+    .preview-card #qrcode canvas, .preview-card #qrcode img { display: block; width: 170px !important; height: 170px !important; }
+    .preview-card .footer-title { font-size: 0.72rem; letter-spacing: 1.2px; font-weight: 700; }
+    .preview-card .footer-sub { font-size: 0.62rem; opacity: 0.85; margin-top: 3px; }
+    .preview-card .dash-line { border-top: 1px dashed rgba(255, 255, 255, 0.45); width: 80%; margin: 12px auto 0 auto; }
+
     .btn-row { display: flex; gap: 10px; margin-top: 14px; }
     .btn-row button {
-      flex: 1;
-      padding: 12px 10px;
-      border-radius: 8px;
-      font-weight: 600;
-      border: none;
-      cursor: pointer;
-      font-size: 0.9rem;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
+      flex: 1; padding: 12px 10px; border-radius: 8px; font-weight: 600; border: none; cursor: pointer;
+      font-size: 0.88rem; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
     }
     .btn-download { background: #10b981; color: white; }
-    .btn-download:hover { background: #059669; }
     .btn-share { background: #6366f1; color: white; }
-    .btn-share:hover { background: #4f46e5; }
 
     .msg { font-size: 0.9rem; margin-top: 12px; font-weight: 600; text-align: center; }
     .msg.err { color: #dc2626; }
     .msg.ok { color: #16a34a; }
-
     .display-title { font-size: 1.2rem; font-weight: 700; text-align: center; margin-bottom: 4px; }
     .display-desc { font-size: 0.88rem; color: var(--muted); text-align: center; margin-bottom: 14px; white-space: pre-wrap; }
     .preview-img { max-width: 100%; max-height: 250px; object-fit: contain; border-radius: 8px; margin: 10px 0; border: 1px solid var(--border); }
@@ -142,44 +104,67 @@
 <body>
 
   <div class="card">
-    <!-- VIEW 1: CREATOR -->
-    <div id="creator-view">
-      <h1>Protected QR Studio</h1>
-      <p class="sub">Generate a password-locked Flash Card QR code</p>
+    <!-- MAIN CREATOR & UPDATER VIEW -->
+    <div id="studio-view">
+      <h1>Dynamic-Static QR Studio</h1>
+      <p class="sub">Same QR code forever — update data anytime</p>
 
-      <!-- TAB SELECTION -->
-      <div class="tab-group">
-        <button type="button" class="tab-btn active" onclick="setMode('url')">Drive / URL</button>
-        <button type="button" class="tab-btn" onclick="setMode('image')">Photo Link</button>
-        <button type="button" class="tab-btn" onclick="setMode('file')">File Link</button>
+      <!-- MODE SWITCHER -->
+      <div class="top-nav">
+        <button type="button" class="nav-btn active" id="navCreate" onclick="switchStudioMode('create')">✨ Create New QR</button>
+        <button type="button" class="nav-btn" id="navUpdate" onclick="switchStudioMode('update')">🔄 Update Existing QR</button>
       </div>
 
-      <form onsubmit="handleGenerate(event)">
-        <!-- URL Input -->
+      <!-- UPDATE LOOKUP BOX -->
+      <div id="updateLookupBox" style="display: none; background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 16px;">
+        <!-- Quick Tap Saved QRs from this phone -->
+        <div id="savedHistorySection" class="history-box" style="display: none;">
+          <div class="history-title">📌 Your Saved QRs on this device (Tap to select):</div>
+          <div id="historyList" class="history-list"></div>
+        </div>
+
+        <div class="form-group">
+          <label>Enter QR ID (e.g. qr_a1b2c3)</label>
+          <input type="text" id="lookupIdInput" placeholder="Paste or tap QR ID above" />
+        </div>
+        <div class="form-group">
+          <label>Current Password (to verify ownership)</label>
+          <input type="password" id="lookupPassInput" placeholder="Enter existing password" />
+        </div>
+        <button type="button" class="primary-btn" onclick="loadExistingQR()">Load QR Data to Edit</button>
+        <div id="lookupStatus" class="msg"></div>
+      </div>
+
+      <!-- FORM -->
+      <form id="qrForm" onsubmit="handleSave(event)">
+        <input type="hidden" id="editingQrId" value="" />
+
+        <div class="tab-group">
+          <button type="button" class="tab-btn active" onclick="setMode('url')">Drive / URL</button>
+          <button type="button" class="tab-btn" onclick="setMode('image')">Photo Link</button>
+          <button type="button" class="tab-btn" onclick="setMode('file')">File Link</button>
+        </div>
+
         <div class="form-group">
           <label id="inputLabel">Google Drive / Target Link</label>
           <input type="url" id="linkInput" placeholder="https://drive.google.com/..." required />
         </div>
 
-        <!-- Custom Card Heading (Default: My QR) -->
         <div class="form-group">
           <label>Card Heading (Top Style Text)</label>
           <input type="text" id="cardHeadingInput" value="My QR" placeholder="e.g. My QR" required />
         </div>
 
-        <!-- QR Name/Title -->
         <div class="form-group">
           <label>File / Link Name</label>
           <input type="text" id="titleInput" placeholder="e.g. Secret Drive Folder" required />
         </div>
 
-        <!-- Description -->
         <div class="form-group">
           <label>QR Description / Note (Optional)</label>
           <textarea id="descInput" placeholder="Add custom instructions or note..."></textarea>
         </div>
 
-        <!-- Card Theme Color -->
         <div class="color-row form-group">
           <div class="color-box">
             <label>Flash Card Color</label>
@@ -191,20 +176,18 @@
           </div>
         </div>
 
-        <!-- Password -->
         <div class="form-group">
-          <label>Set Password</label>
+          <label id="passLabel">Set Password</label>
           <input type="password" id="passInput" placeholder="Enter password to lock" required />
         </div>
 
-        <button type="submit" class="primary-btn">Generate Flash Card QR</button>
+        <button type="submit" class="primary-btn" id="submitBtn">Generate Permanent QR</button>
       </form>
 
       <!-- RESULT SECTION -->
       <div id="result" class="result-section">
-        <label style="font-weight:700;">Live Flash Card Preview:</label>
+        <div class="id-badge">QR ID: <span id="displayQrId"></span></div>
         
-        <!-- VISUAL FLASH CARD PREVIEW -->
         <div class="preview-card" id="flashCardPreview">
           <div class="header-title" id="previewHeading">My QR</div>
           <div class="header-sub">SCAN TO OPEN</div>
@@ -217,33 +200,27 @@
           <div class="dash-line"></div>
         </div>
 
-        <!-- ACTION BUTTONS -->
         <div class="btn-row">
-          <button type="button" class="btn-download" onclick="downloadFlashCard()">
-            📥 Download Flash Card (PNG)
-          </button>
-          <button type="button" class="btn-share" onclick="shareQR()">
-            🔗 Share Link
-          </button>
+          <button type="button" class="btn-download" onclick="downloadFlashCard()">📥 Download PNG</button>
+          <button type="button" class="btn-share" onclick="shareQR()">🔗 Share Link</button>
         </div>
       </div>
     </div>
 
     <!-- VIEW 2: UNLOCK SCREEN -->
     <div id="unlock-view" style="display: none;">
-      <h2 class="display-title" id="outTitle">🔒 Locked Content</h2>
-      <p class="display-desc" id="outDesc">Enter password to view content.</p>
+      <h2 class="display-title" id="outTitle">🔒 Protected Content</h2>
+      <p class="display-desc" id="outDesc">Enter password to unlock the latest link.</p>
 
       <form onsubmit="handleUnlock(event)">
         <div class="form-group">
           <label>Enter Password</label>
           <input type="password" id="unlockPass" placeholder="Password" required />
         </div>
-        <button type="submit" class="primary-btn">Unlock Content</button>
+        <button type="submit" class="primary-btn" id="unlockBtn">Unlock Content</button>
       </form>
 
       <div id="unlock-status" class="msg"></div>
-      
       <div id="unlocked-content" style="display: none; margin-top: 15px; text-align: center;">
         <div id="contentRenderer"></div>
       </div>
@@ -251,8 +228,104 @@
   </div>
 
   <script>
+    // Your Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyC58tnu9LE_2vg0KN7YUMjhcZeHtpJ7_A",
+      authDomain: "dynamic-qr-8bd6b.firebaseapp.com",
+      databaseURL: "https://dynamic-qr-8bd6b-default-rtdb.firebaseio.com",
+      projectId: "dynamic-qr-8bd6b",
+      storageBucket: "dynamic-qr-8bd6b.firebasestorage.app",
+      messagingSenderId: "493960067361",
+      appId: "1:493960067361:web:da7d2be79aebc14380a660",
+      measurementId: "G-789J10VF1F"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
     let currentMode = 'url';
+    let studioMode = 'create';
     let currentTargetUrl = '';
+
+    function xorCipher(text, pass) {
+      let res = '';
+      for (let i = 0; i < text.length; i++) {
+        res += String.fromCharCode(text.charCodeAt(i) ^ pass.charCodeAt(i % pass.length));
+      }
+      return res;
+    }
+
+    function encryptData(obj, pass) {
+      const jsonStr = JSON.stringify(obj);
+      return btoa(unescape(encodeURIComponent(xorCipher(jsonStr, pass))));
+    }
+
+    function decryptData(cipherText, pass) {
+      const decryptedStr = xorCipher(decodeURIComponent(escape(atob(cipherText))), pass);
+      return JSON.parse(decryptedStr);
+    }
+
+    // Local device history helpers
+    function saveIdToLocalHistory(qrId, title) {
+      let list = JSON.parse(localStorage.getItem("my_dynamic_qrs") || "[]");
+      list = list.filter(item => item.id !== qrId);
+      list.unshift({ id: qrId, title: title });
+      localStorage.setItem("my_dynamic_qrs", JSON.stringify(list.slice(0, 15)));
+    }
+
+    function renderLocalHistory() {
+      const list = JSON.parse(localStorage.getItem("my_dynamic_qrs") || "[]");
+      const section = document.getElementById("savedHistorySection");
+      const container = document.getElementById("historyList");
+      if (!list.length) {
+        section.style.display = "none";
+        return;
+      }
+      section.style.display = "block";
+      container.innerHTML = "";
+      list.forEach(item => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "history-chip";
+        btn.innerText = `${item.title} (${item.id})`;
+        btn.onclick = () => {
+          document.getElementById("lookupIdInput").value = item.id;
+          document.getElementById("lookupPassInput").focus();
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      const hash = window.location.hash;
+      if (hash.startsWith("#id=")) {
+        document.getElementById("studio-view").style.display = "none";
+        document.getElementById("unlock-view").style.display = "block";
+      } else {
+        renderLocalHistory();
+      }
+    });
+
+    function switchStudioMode(mode) {
+      studioMode = mode;
+      document.getElementById("navCreate").classList.toggle("active", mode === 'create');
+      document.getElementById("navUpdate").classList.toggle("active", mode === 'update');
+      document.getElementById("result").style.display = "none";
+
+      if (mode === 'create') {
+        document.getElementById("updateLookupBox").style.display = "none";
+        document.getElementById("qrForm").style.display = "block";
+        document.getElementById("editingQrId").value = "";
+        document.getElementById("submitBtn").innerText = "Generate Permanent QR";
+        document.getElementById("passLabel").innerText = "Set Password";
+        document.getElementById("qrForm").reset();
+      } else {
+        renderLocalHistory();
+        document.getElementById("updateLookupBox").style.display = "block";
+        document.getElementById("qrForm").style.display = "none";
+        document.getElementById("lookupStatus").innerText = "";
+      }
+    }
 
     function setMode(mode) {
       currentMode = mode;
@@ -267,38 +340,70 @@
       } else if (mode === 'image') {
         document.querySelectorAll('.tab-btn')[1].classList.add('active');
         label.innerText = "Photo / Image URL (Direct Link)";
-        input.placeholder = "https://example.com/photo.jpg or Drive link";
+        input.placeholder = "https://example.com/photo.jpg";
       } else {
         document.querySelectorAll('.tab-btn')[2].classList.add('active');
         label.innerText = "File URL (PDF / Doc / ZIP link)";
-        input.placeholder = "https://drive.google.com/... or download URL";
+        input.placeholder = "https://drive.google.com/...";
       }
     }
 
     function updatePreviewTheme() {
       const color = document.getElementById("cardBgColor").value;
-      const preview = document.getElementById("flashCardPreview");
-      if (preview) preview.style.backgroundColor = color;
+      document.getElementById("flashCardPreview").style.backgroundColor = color;
     }
 
-    function xorCipher(text, pass) {
-      let res = '';
-      for (let i = 0; i < text.length; i++) {
-        res += String.fromCharCode(text.charCodeAt(i) ^ pass.charCodeAt(i % pass.length));
+    async function loadExistingQR() {
+      const qrId = document.getElementById("lookupIdInput").value.trim();
+      const pass = document.getElementById("lookupPassInput").value;
+      const status = document.getElementById("lookupStatus");
+
+      if (!qrId || !pass) {
+        status.className = "msg err";
+        status.innerText = "Please enter both QR ID and Password.";
+        return;
       }
-      return res;
+
+      status.className = "msg";
+      status.innerText = "Fetching record...";
+
+      try {
+        const snap = await db.ref("dynamic_qrs/" + qrId).get();
+        if (!snap.exists()) {
+          status.className = "msg err";
+          status.innerText = "❌ QR ID not found!";
+          return;
+        }
+
+        const record = snap.val();
+        const decrypted = decryptData(record.cipher, pass);
+
+        document.getElementById("editingQrId").value = qrId;
+        setMode(decrypted.type || 'url');
+        document.getElementById("linkInput").value = decrypted.data;
+        document.getElementById("titleInput").value = decrypted.title;
+        document.getElementById("descInput").value = decrypted.desc || "";
+        document.getElementById("cardHeadingInput").value = record.cardHeading || "My QR";
+        document.getElementById("cardBgColor").value = record.cardBg || "#c4848d";
+        document.getElementById("qrDarkColor").value = record.qrColor || "#000000";
+        document.getElementById("passInput").value = pass;
+
+        document.getElementById("passLabel").innerText = "Password (Keep same or change)";
+        document.getElementById("submitBtn").innerText = "Save & Update QR Data";
+        document.getElementById("qrForm").style.display = "block";
+        status.className = "msg ok";
+        status.innerText = "✓ Loaded! Edit fields below and save.";
+      } catch (err) {
+        status.className = "msg err";
+        status.innerText = "❌ Wrong password or corrupted data!";
+      }
     }
 
-    window.addEventListener("DOMContentLoaded", () => {
-      const hash = window.location.hash;
-      if (hash.startsWith("#data=")) {
-        document.getElementById("creator-view").style.display = "none";
-        document.getElementById("unlock-view").style.display = "block";
-      }
-    });
-
-    function handleGenerate(e) {
+    async function handleSave(e) {
       e.preventDefault();
+      const btn = document.getElementById("submitBtn");
+      btn.disabled = true;
+
       const link = document.getElementById("linkInput").value.trim();
       const cardHeading = document.getElementById("cardHeadingInput").value.trim() || "My QR";
       const title = document.getElementById("titleInput").value.trim();
@@ -307,49 +412,102 @@
       const cardBg = document.getElementById("cardBgColor").value;
       const qrColor = document.getElementById("qrDarkColor").value;
 
-      if (!link || !pass) return alert("Please fill all required fields");
-
-      const payload = JSON.stringify({
-        title,
-        desc,
-        type: currentMode,
-        data: link
-      });
-
-      // Encrypt
-      const encrypted = btoa(unescape(encodeURIComponent(xorCipher(payload, pass))));
-      const baseUrl = window.location.href.split("#")[0];
-      currentTargetUrl = `${baseUrl}#data=${encodeURIComponent(encrypted)}`;
-
-      // Update Card Preview Style
-      const card = document.getElementById("flashCardPreview");
-      card.style.backgroundColor = cardBg;
-      document.getElementById("previewHeading").innerText = cardHeading;
-
-      // Render QR
-      const qrBox = document.getElementById("qrcode");
-      qrBox.innerHTML = "";
-      new QRCode(qrBox, {
-        text: currentTargetUrl,
-        width: 170,
-        height: 170,
-        colorDark: qrColor,
-        colorLight: "#ffffff",
-        correctLevel: QRCode.CorrectLevel.M
-      });
-
-      document.getElementById("result").style.display = "block";
-    }
-
-    // HIGH QUALITY CANVAS FLASH CARD BUILDER (Downloads exact aesthetic card as PNG)
-    async function downloadFlashCard() {
-      const qrCanvas = document.querySelector("#qrcode canvas");
-      if (!qrCanvas) {
-        alert("Please generate QR code first!");
-        return;
+      let qrId = document.getElementById("editingQrId").value;
+      if (!qrId) {
+        qrId = "qr_" + Math.random().toString(36).substring(2, 8);
       }
 
-      // High-res Canvas setup (520x960 for crystal-clear mobile display)
+      const cipher = encryptData({ title, desc, type: currentMode, data: link }, pass);
+
+      try {
+        await db.ref("dynamic_qrs/" + qrId).set({
+          cipher: cipher,
+          cardHeading: cardHeading,
+          cardBg: cardBg,
+          qrColor: qrColor,
+          updatedAt: Date.now()
+        });
+
+        saveIdToLocalHistory(qrId, title);
+
+        const baseUrl = window.location.href.split("#")[0];
+        currentTargetUrl = `${baseUrl}#id=${qrId}`;
+
+        document.getElementById("displayQrId").innerText = qrId;
+        document.getElementById("flashCardPreview").style.backgroundColor = cardBg;
+        document.getElementById("previewHeading").innerText = cardHeading;
+
+        const qrBox = document.getElementById("qrcode");
+        qrBox.innerHTML = "";
+        new QRCode(qrBox, {
+          text: currentTargetUrl,
+          width: 170,
+          height: 170,
+          colorDark: qrColor,
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.M
+        });
+
+        document.getElementById("result").style.display = "block";
+        alert(studioMode === 'update' ? "✅ QR Updated! Purana QR code hi naya data dikhayega." : "✅ Permanent QR Created! Device me save ho gaya hai.");
+      } catch (err) {
+        alert("Database Error: " + err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function handleUnlock(e) {
+      e.preventDefault();
+      const pass = document.getElementById("unlockPass").value;
+      const status = document.getElementById("unlock-status");
+      const outBox = document.getElementById("unlocked-content");
+      const renderer = document.getElementById("contentRenderer");
+      const qrId = window.location.hash.replace("#id=", "").trim();
+
+      status.className = "msg";
+      status.innerText = "Checking...";
+
+      try {
+        const snap = await db.ref("dynamic_qrs/" + qrId).get();
+        if (!snap.exists()) {
+          status.className = "msg err";
+          status.innerText = "❌ Invalid or deleted QR Code!";
+          return;
+        }
+
+        const obj = decryptData(snap.val().cipher, pass);
+
+        status.className = "msg ok";
+        status.innerText = "✓ Unlocked successfully!";
+        document.getElementById("outTitle").innerText = obj.title || "Unlocked Content";
+        document.getElementById("outDesc").innerText = obj.desc || "";
+
+        renderer.innerHTML = "";
+        if (obj.type === 'url') {
+          renderer.innerHTML = `<a href="${obj.data}" target="_blank" class="primary-btn" style="display:block; text-decoration:none;">Open Link ↗</a>`;
+          setTimeout(() => { window.location.href = obj.data; }, 800);
+        } else if (obj.type === 'image') {
+          renderer.innerHTML = `
+            <img src="${obj.data}" class="preview-img" alt="Preview" onerror="this.style.display='none'" />
+            <a href="${obj.data}" target="_blank" class="primary-btn" style="display:block; text-decoration:none;">Open / View Photo ↗</a>
+          `;
+        } else {
+          renderer.innerHTML = `<a href="${obj.data}" target="_blank" class="primary-btn" style="display:block; text-decoration:none;">Open / Download File ↗</a>`;
+        }
+
+        outBox.style.display = "block";
+      } catch (err) {
+        status.className = "msg err";
+        status.innerText = "❌ Incorrect password!";
+        outBox.style.display = "none";
+      }
+    }
+
+    async function downloadFlashCard() {
+      const qrCanvas = document.querySelector("#qrcode canvas");
+      if (!qrCanvas) return alert("Please generate QR code first!");
+
       const canvas = document.createElement("canvas");
       canvas.width = 520;
       canvas.height = 960;
@@ -358,7 +516,6 @@
       const cardBg = document.getElementById("cardBgColor").value || "#c4848d";
       const cardHeading = document.getElementById("cardHeadingInput").value || "My QR";
 
-      // Helper function to draw rounded rectangles
       function roundRect(ctx, x, y, width, height, radius) {
         ctx.beginPath();
         ctx.moveTo(x + radius, y);
@@ -373,31 +530,25 @@
         ctx.closePath();
       }
 
-      // 1. Draw Card Background
       roundRect(ctx, 0, 0, 520, 960, 48);
       ctx.fillStyle = cardBg;
       ctx.fill();
 
-      // Ensure Fonts are Loaded
       await document.fonts.ready;
 
-      // 2. Draw Top Heading (My QR)
       ctx.fillStyle = "#ffffff";
       ctx.textAlign = "center";
       ctx.font = "bold 82px 'Caveat', cursive, sans-serif";
       ctx.fillText(cardHeading, 260, 155);
 
-      // 3. Draw Subtitle "SCAN TO OPEN"
       ctx.font = "600 19px 'Poppins', sans-serif";
       ctx.letterSpacing = "3px";
       ctx.fillText("SCAN TO OPEN", 260, 205);
 
-      // 4. Draw Heart Icon (🤍)
       ctx.font = "26px sans-serif";
       ctx.textAlign = "right";
       ctx.fillText("♡", 440, 248);
 
-      // 5. Draw White QR Container Box
       ctx.save();
       roundRect(ctx, 70, 260, 380, 380, 36);
       ctx.fillStyle = "#ffffff";
@@ -407,23 +558,19 @@
       ctx.fill();
       ctx.restore();
 
-      // 6. Draw QR Code inside the box
       ctx.drawImage(qrCanvas, 95, 285, 330, 330);
 
-      // 7. Draw Bottom Info "SHARE & CONNECT"
       ctx.textAlign = "center";
       ctx.fillStyle = "#ffffff";
       ctx.font = "bold 20px 'Poppins', sans-serif";
       ctx.letterSpacing = "2px";
       ctx.fillText("SHARE & CONNECT", 260, 725);
 
-      // 8. Draw Subtext
       ctx.font = "16px 'Poppins', sans-serif";
       ctx.letterSpacing = "0px";
       ctx.fillStyle = "rgba(255, 255, 255, 0.88)";
       ctx.fillText("Point your camera to scan instantly", 260, 765);
 
-      // 9. Draw Dashed Divider Line
       ctx.beginPath();
       ctx.setLineDash([8, 8]);
       ctx.moveTo(140, 815);
@@ -432,7 +579,6 @@
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // 10. Download Output PNG
       const a = document.createElement("a");
       a.href = canvas.toDataURL("image/png");
       const filename = (cardHeading || "My_QR").replace(/[^a-zA-Z0-9_-]/g, "_");
@@ -448,59 +594,11 @@
 
       if (navigator.share) {
         try {
-          await navigator.share({
-            title: title,
-            text: `Open this protected link (Password Required):`,
-            url: currentTargetUrl
-          });
+          await navigator.share({ title: title, text: `Open this protected link:`, url: currentTargetUrl });
         } catch (err) {}
       } else {
         navigator.clipboard.writeText(currentTargetUrl);
-        alert("Link copied to clipboard! You can share it via WhatsApp or Messages.");
-      }
-    }
-
-    function handleUnlock(e) {
-      e.preventDefault();
-      const pass = document.getElementById("unlockPass").value;
-      const status = document.getElementById("unlock-status");
-      const outBox = document.getElementById("unlocked-content");
-      const renderer = document.getElementById("contentRenderer");
-
-      try {
-        const hash = window.location.hash.replace("#data=", "");
-        const raw = decodeURIComponent(hash);
-        const decryptedStr = xorCipher(decodeURIComponent(escape(atob(raw))), pass);
-        const obj = JSON.parse(decryptedStr);
-
-        status.className = "msg ok";
-        status.innerText = "✓ Unlocked successfully!";
-
-        document.getElementById("outTitle").innerText = obj.title || "Unlocked Content";
-        document.getElementById("outDesc").innerText = obj.desc || "";
-
-        renderer.innerHTML = "";
-        if (obj.type === 'url') {
-          renderer.innerHTML = `
-            <a href="${obj.data}" target="_blank" class="primary-btn" style="display:block; text-decoration:none;">Open Google Drive Link ↗</a>
-          `;
-          setTimeout(() => { window.location.href = obj.data; }, 800);
-        } else if (obj.type === 'image') {
-          renderer.innerHTML = `
-            <img src="${obj.data}" class="preview-img" alt="Unlocked Image Preview" onerror="this.style.display='none'" />
-            <a href="${obj.data}" target="_blank" class="primary-btn" style="display:block; text-decoration:none;">Open / View Photo ↗</a>
-          `;
-        } else {
-          renderer.innerHTML = `
-            <a href="${obj.data}" target="_blank" class="primary-btn" style="display:block; text-decoration:none;">Open / Download File ↗</a>
-          `;
-        }
-
-        outBox.style.display = "block";
-      } catch (err) {
-        status.className = "msg err";
-        status.innerText = "❌ Incorrect password!";
-        outBox.style.display = "none";
+        alert("Link copied to clipboard!");
       }
     }
   </script>
