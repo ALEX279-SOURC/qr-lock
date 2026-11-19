@@ -6,7 +6,7 @@
   <title>Dynamic-Static Secure QR Studio</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=JetBrains+Mono:wght@600&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   
   <!-- Firebase SDKs -->
@@ -72,7 +72,7 @@
 
     /* PREVIEW CONTAINER */
     .preview-card {
-      width: 260px; margin: 14px auto; border-radius: 26px; padding: 24px 18px 20px 18px;
+      width: 260px; margin: 14px auto; border-radius: 26px; padding: 24px 18px 18px 18px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.15); color: #ffffff; text-align: center; transition: background 0.3s;
     }
     .preview-card .header-title { font-family: 'Caveat', cursive; font-size: 2.4rem; line-height: 1.1; font-weight: 700; }
@@ -83,7 +83,17 @@
     .preview-card #qrcode canvas, .preview-card #qrcode img { display: block; width: 170px !important; height: 170px !important; }
     .preview-card .footer-title { font-size: 0.72rem; letter-spacing: 1.2px; font-weight: 700; }
     .preview-card .footer-sub { font-size: 0.62rem; opacity: 0.85; margin-top: 3px; }
-    .preview-card .dash-line { border-top: 1px dashed rgba(255, 255, 255, 0.45); width: 80%; margin: 12px auto 0 auto; }
+    .preview-card .dash-line { border-top: 1px dashed rgba(255, 255, 255, 0.45); width: 80%; margin: 12px auto 8px auto; }
+    .preview-card .card-id-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.8px;
+      background: rgba(0, 0, 0, 0.16);
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      color: rgba(255, 255, 255, 0.95);
+    }
 
     .btn-row { display: flex; gap: 10px; margin-top: 14px; }
     .btn-row button {
@@ -117,7 +127,6 @@
 
       <!-- UPDATE LOOKUP BOX -->
       <div id="updateLookupBox" style="display: none; background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 16px;">
-        <!-- Quick Tap Saved QRs from this phone -->
         <div id="savedHistorySection" class="history-box" style="display: none;">
           <div class="history-title">📌 Your Saved QRs on this device (Tap to select):</div>
           <div id="historyList" class="history-list"></div>
@@ -198,6 +207,7 @@
           <div class="footer-title">SHARE & CONNECT</div>
           <div class="footer-sub">Point your camera to scan instantly</div>
           <div class="dash-line"></div>
+          <div class="card-id-tag" id="cardPreviewId">ID: qr_------</div>
         </div>
 
         <div class="btn-row">
@@ -246,6 +256,7 @@
     let currentMode = 'url';
     let studioMode = 'create';
     let currentTargetUrl = '';
+    let activeQrId = '';
 
     function xorCipher(text, pass) {
       let res = '';
@@ -265,7 +276,6 @@
       return JSON.parse(decryptedStr);
     }
 
-    // Local device history helpers
     function saveIdToLocalHistory(qrId, title) {
       let list = JSON.parse(localStorage.getItem("my_dynamic_qrs") || "[]");
       list = list.filter(item => item.id !== qrId);
@@ -428,12 +438,15 @@
           updatedAt: Date.now()
         });
 
+        activeQrId = qrId;
         saveIdToLocalHistory(qrId, title);
 
         const baseUrl = window.location.href.split("#")[0];
         currentTargetUrl = `${baseUrl}#id=${qrId}`;
 
+        // Update Top Badge AND Flash Card Bottom ID Tag
         document.getElementById("displayQrId").innerText = qrId;
+        document.getElementById("cardPreviewId").innerText = `ID: ${qrId}`;
         document.getElementById("flashCardPreview").style.backgroundColor = cardBg;
         document.getElementById("previewHeading").innerText = cardHeading;
 
@@ -449,7 +462,7 @@
         });
 
         document.getElementById("result").style.display = "block";
-        alert(studioMode === 'update' ? "✅ QR Updated! Purana QR code hi naya data dikhayega." : "✅ Permanent QR Created! Device me save ho gaya hai.");
+        alert(studioMode === 'update' ? "✅ QR Updated! Purana QR code hi naya data dikhayega." : "✅ Permanent QR Created! Flash Card par ID print ho gayi hai.");
       } catch (err) {
         alert("Database Error: " + err.message);
       } finally {
@@ -515,6 +528,7 @@
 
       const cardBg = document.getElementById("cardBgColor").value || "#c4848d";
       const cardHeading = document.getElementById("cardHeadingInput").value || "My QR";
+      const qrIdText = activeQrId || document.getElementById("displayQrId").innerText || "";
 
       function roundRect(ctx, x, y, width, height, radius) {
         ctx.beginPath();
@@ -530,27 +544,32 @@
         ctx.closePath();
       }
 
+      // 1. Card Background
       roundRect(ctx, 0, 0, 520, 960, 48);
       ctx.fillStyle = cardBg;
       ctx.fill();
 
       await document.fonts.ready;
 
+      // 2. Top Heading
       ctx.fillStyle = "#ffffff";
       ctx.textAlign = "center";
       ctx.font = "bold 82px 'Caveat', cursive, sans-serif";
-      ctx.fillText(cardHeading, 260, 155);
+      ctx.fillText(cardHeading, 260, 150);
 
+      // 3. Subtitle
       ctx.font = "600 19px 'Poppins', sans-serif";
       ctx.letterSpacing = "3px";
-      ctx.fillText("SCAN TO OPEN", 260, 205);
+      ctx.fillText("SCAN TO OPEN", 260, 200);
 
+      // 4. Heart Icon
       ctx.font = "26px sans-serif";
       ctx.textAlign = "right";
-      ctx.fillText("♡", 440, 248);
+      ctx.fillText("♡", 440, 242);
 
+      // 5. White QR Container
       ctx.save();
-      roundRect(ctx, 70, 260, 380, 380, 36);
+      roundRect(ctx, 70, 255, 380, 380, 36);
       ctx.fillStyle = "#ffffff";
       ctx.shadowColor = "rgba(0,0,0,0.15)";
       ctx.shadowBlur = 24;
@@ -558,31 +577,56 @@
       ctx.fill();
       ctx.restore();
 
-      ctx.drawImage(qrCanvas, 95, 285, 330, 330);
+      // 6. QR Code
+      ctx.drawImage(qrCanvas, 95, 280, 330, 330);
 
+      // 7. Bottom Title
       ctx.textAlign = "center";
       ctx.fillStyle = "#ffffff";
       ctx.font = "bold 20px 'Poppins', sans-serif";
       ctx.letterSpacing = "2px";
-      ctx.fillText("SHARE & CONNECT", 260, 725);
+      ctx.fillText("SHARE & CONNECT", 260, 710);
 
+      // 8. Subtext
       ctx.font = "16px 'Poppins', sans-serif";
       ctx.letterSpacing = "0px";
       ctx.fillStyle = "rgba(255, 255, 255, 0.88)";
-      ctx.fillText("Point your camera to scan instantly", 260, 765);
+      ctx.fillText("Point your camera to scan instantly", 260, 748);
 
+      // 9. Dashed Divider Line
       ctx.beginPath();
       ctx.setLineDash([8, 8]);
-      ctx.moveTo(140, 815);
-      ctx.lineTo(380, 815);
+      ctx.moveTo(140, 795);
+      ctx.lineTo(380, 795);
       ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
       ctx.lineWidth = 2;
       ctx.stroke();
+      ctx.setLineDash([]);
 
+      // 10. QR ID Pill Badge at Bottom of Flash Card
+      if (qrIdText) {
+        const badgeText = `ID: ${qrIdText}`;
+        ctx.font = "600 18px 'JetBrains Mono', monospace";
+        const textWidth = ctx.measureText(badgeText).width;
+        const pillW = textWidth + 36;
+        const pillH = 38;
+        const pillX = (520 - pillW) / 2;
+        const pillY = 825;
+
+        roundRect(ctx, pillW ? pillX : 160, pillY, pillW, pillH, 19);
+        ctx.fillStyle = "rgba(0, 0, 0, 0.18)";
+        ctx.fill();
+
+        ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
+        ctx.textAlign = "center";
+        ctx.fillText(badgeText, 260, pillY + 25);
+      }
+
+      // 11. Download PNG
       const a = document.createElement("a");
       a.href = canvas.toDataURL("image/png");
       const filename = (cardHeading || "My_QR").replace(/[^a-zA-Z0-9_-]/g, "_");
-      a.download = `${filename}_FlashCard.png`;
+      a.download = `${filename}_${qrIdText || "FlashCard"}.png`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
